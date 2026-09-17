@@ -434,35 +434,30 @@ function TerminalPanel(props) {
   /** conversation-column geometry: the panel never covers the side rails */
   const [geo, setGeo] = useState({ left: 0, width: window.innerWidth });
 
-  /* The terminal bar/panel is pinned to the viewport bottom; the composer card
-   * (the nearest ancestor holding the textarea) gets margin-bottom equal to the
-   * panel's rendered height, so the input dialog ALWAYS sits above the terminal
-   * - collapsed bar (34px) and expanded panel alike. */
+  /* The terminal bar/panel is pinned to the viewport bottom. DSH's composer
+   * seat is sticky bottom:0 inside [data-conversation-scroll] (contenteditable,
+   * not textarea), so marginBottom on an ancestor cannot lift it — set seat
+   * style.bottom to the panel height instead (collapsed bar and expanded alike). */
   const { useLayoutEffect } = React;
   useLayoutEffect(() => {
     const rootEl = rootRef.current;
     if (rootEl === null) return;
     const host = () => rootEl.closest("[data-conversation-scroll]") ?? rootEl.parentElement;
-    const findComposer = () => {
-      let el = rootEl.parentElement;
-      while (el !== null && el !== document.body) {
-        if (el.querySelector("textarea") !== null) return el;
-        el = el.parentElement;
-      }
-      return null;
-    };
-    let card = null;
+    let seat = null;
     const measure = () => {
       const el = host();
       if (el !== null) {
         const r = el.getBoundingClientRect();
         setGeo({ left: r.left, width: r.width });
+        if (seat === null || !el.contains(seat)) {
+          seat = el.querySelector("[data-composer-seat]");
+        }
       }
       const h = Math.round(rootEl.getBoundingClientRect().height);
-      if (card !== null) card.style.marginBottom = h > 0 ? h + "px" : "";
+      if (seat !== null) seat.style.bottom = h > 0 ? h + "px" : "";
     };
-    card = findComposer();
     const el = host();
+    seat = el?.querySelector?.("[data-composer-seat]") ?? null;
     const ro = new ResizeObserver(measure);
     if (el !== null) ro.observe(el);
     ro.observe(rootEl);
@@ -471,7 +466,7 @@ function TerminalPanel(props) {
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", measure);
-      if (card !== null) card.style.marginBottom = "";
+      if (seat !== null) seat.style.bottom = "";
     };
   }, []);
 
